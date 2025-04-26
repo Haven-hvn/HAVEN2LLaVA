@@ -4,6 +4,7 @@ import logging
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 import requests
 import pandas as pd
