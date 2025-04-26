@@ -38,7 +38,8 @@ INNER JOIN
 WHERE
     vc.thumbnail IS NOT NULL AND
     vc.thumbnail <> ''
-GROUP BY vc.thumbnail;
+GROUP BY vc.thumbnail
+ORDER BY RAND();
 """
 
 
