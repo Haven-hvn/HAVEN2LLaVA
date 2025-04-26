@@ -41,45 +41,37 @@ GROUP BY vc.thumbnail;
 """
 
 
- def fetch_ipfs_image_exponential_backoff(cid,
-                                          max_retries=10,
-                                          base_delay=2,
-                                          max_delay=30,
-                                          timeout=15):
-     """
-     Tries to download an image from IPFS via the configured gateway using exponential backoff.
-     Returns image bytes or None if unavailable after all retries.
-     """
-     url = f"https://premium.w3ipfs.storage/ipfs/{cid}"
-     attempt = 0
-     while attempt < max_retries:
-         attempt += 1
-         try:
-             resp = requests.get(url, timeout=timeout)
-             sc = resp.status_code
-             if sc == 200:
-                 return resp.content
-             elif sc == 404 or sc == 403:
-                 return None
-             elif sc == 429 or sc >= 500:
-                 if attempt == max_retries:
-                     return None
-                 delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
-                 jitter = random.uniform(0, 1)
-                 time.sleep(delay + jitter)
-                 continue
-             else:
-                 return None
-         except requests.exceptions.RequestException:
-             if attempt == max_retries:
-                 return None
-             delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
-             jitter = random.uniform(0, 1)
-             time.sleep(delay + jitter)
-             continue
-         except Exception:
-             return None
-     return None
+def fetch_ipfs_image_exponential_backoff(cid, max_retries=10, base_delay=2, max_delay=30, timeout=15):
+    url = f"https://premium.w3ipfs.storage/ipfs/{cid}"
+    attempt = 0
+    while attempt < max_retries:
+        attempt += 1
+        try:
+            resp = requests.get(url, timeout=timeout)
+            sc = resp.status_code
+            if sc == 200:
+                return resp.content
+            elif sc == 404 or sc == 403:
+                return None
+            elif sc == 429 or sc >= 500:
+                if attempt == max_retries:
+                    return None
+                delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+                jitter = random.uniform(0, 1)
+                time.sleep(delay + jitter)
+                continue
+            else:
+                return None
+        except requests.exceptions.RequestException:
+            if attempt == max_retries:
+                return None
+            delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
+            jitter = random.uniform(0, 1)
+            time.sleep(delay + jitter)
+            continue
+        except Exception:
+            return None
+    return None
 
 # --- New: Image saver with conflict resolution ---
 def save_image(cid, image_data):
