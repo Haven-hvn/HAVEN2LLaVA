@@ -28,7 +28,7 @@ os.makedirs(IMAGE_FOLDER, exist_ok=True)
 QUERY = """
 SELECT
     vc.thumbnail AS thumbnail_cid,
-    ARRAY_AGG(a.action_name) AS actions
+    ARRAY_AGG(a.action_name ORDER BY vca.initial_confidence_score DESC) AS actions
 FROM
     "VideoClip" vc
 INNER JOIN
@@ -36,9 +36,11 @@ INNER JOIN
 INNER JOIN
     "Action" a ON vca.action_id = a.action_id
 WHERE
-    vc.thumbnail IS NOT NULL AND
-    vc.thumbnail <> ''
-GROUP BY vc.thumbnail;
+    vc.thumbnail IS NOT NULL
+    AND vc.thumbnail <> ''
+    AND vca.initial_confidence_score >= 0.7
+GROUP BY vc.thumbnail
+HAVING COUNT(*) >= 1;
 """
 
 
@@ -103,19 +105,43 @@ def process_group(cid, actions):
         return None
 
     # Build conversation turns
+    # TODO we don't have all the data get for multiple structured tag hierarchies
+    # Structured Tag Hierarchy (soccer example)
+    # TAG_HIERARCHY = {
+    # 'primary': ['goal scored', 'penalty', 'red card'],
+    # 'secondary': ['defending', 'kicking', 'passing'],
+    # 'tertiary': ['running', 'jumping', 'celebrating']
+    # }
     conversations = []
-    for action in actions:
+    if actions:
+        # Use confidence-ordered actions from SQL
+        main_action = actions[0]
+        secondary_actions = actions[1:]
+        
+        # Primary action with confidence context
         conversations.extend([
             {
                 "from": "human",
-                "value": f"<image>\nWhat action is happening in this scene?"
+                "value": "<image>\nWhat's the most certain action in this scene?"
             },
             {
                 "from": "gpt",
-                "value": action
+                "value": main_action
             }
         ])
-
+        
+        # Confidence-aware follow-up
+        if secondary_actions:
+            conversations.extend([
+                {
+                    "from": "human",
+                    "value": "What other high-probability actions exist?"
+                },
+                {
+                    "from": "gpt",
+                    "value": ", ".join(secondary_actions[:3]) + " (lower confidence)"
+                }
+            ])
     return {
         "id": cid,
         "image": filename,
