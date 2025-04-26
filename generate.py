@@ -132,7 +132,7 @@ with ThreadPoolExecutor(max_workers=THREADS) as executor:
         for row in df.itertuples()
     }
     
-    for future in as_completed(future_to_cid):
+    for future in tqdm(as_completed(future_to_cid), total=len(future_to_cid)):
         cid = future_to_cid[future]
         try:
             result = future.result()
