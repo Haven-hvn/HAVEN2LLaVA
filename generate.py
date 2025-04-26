@@ -38,8 +38,7 @@ INNER JOIN
 WHERE
     vc.thumbnail IS NOT NULL AND
     vc.thumbnail <> ''
-GROUP BY vc.thumbnail
-ORDER BY RAND();
+GROUP BY vc.thumbnail;
 """
 
 
@@ -127,22 +126,44 @@ def process_group(cid, actions):
 engine = create_engine(PG_URI)
 df = pd.read_sql(QUERY, engine)
 
-dataset = []
+# --- Initialize or load existing JSON ---
+if os.path.exists(JSON_OUT):
+    with open(JSON_OUT, 'r') as f:
+        dataset = json.load(f)
+    existing_cids = {item['id'] for item in dataset}
+else:
+    dataset = []
+    existing_cids = set()
+
 with ThreadPoolExecutor(max_workers=THREADS) as executor:
     future_to_cid = {
         executor.submit(process_group, row.thumbnail_cid, row.actions): row.thumbnail_cid
         for row in df.itertuples()
+        if row.thumbnail_cid not in existing_cids
     }
-    
-    for future in tqdm(as_completed(future_to_cid), total=len(future_to_cid)):
-        cid = future_to_cid[future]
-        try:
-            result = future.result()
-            if result:
-                dataset.append(result)
-                logging.info(f"Processed {cid} with {len(result['conversations'])//2} actions")
-        except Exception as e:
-            logging.error(f"Failed processing {cid}: {str(e)}")
+
+    if not existing_cids:
+        with open(JSON_OUT, 'w') as f:
+            json.dump([], f, indent=2)
+
+    # Modified progress bar handling
+    with tqdm(total=len(future_to_cid), desc="Processing CIDs") as pbar:
+        for future in as_completed(future_to_cid):
+            cid = future_to_cid[future]
+            try:
+                result = future.result()
+                if result:
+                    dataset.append(result)
+                    # Update JSON
+                    with open(JSON_OUT + '.tmp', 'w') as f:
+                        json.dump(dataset, f, indent=2)
+                    os.replace(JSON_OUT + '.tmp', JSON_OUT)
+                    # Update progress bar description with last processed CID
+                    pbar.set_postfix_str(cid, refresh=False)
+                pbar.update(1)
+            except Exception as e:
+                logging.error(f"Failed processing {cid}: {str(e)}")
+                pbar.update(1)
 
 # Write final JSON output
 with open(JSON_OUT, 'w') as f:
