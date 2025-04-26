@@ -25,6 +25,7 @@ THREADS = 10
 os.makedirs(IMAGE_FOLDER, exist_ok=True)
 
 # --- Updated SQL Query with grouping ---
+# TODO Batch-Based Checkpointing using content fingerprinting and deterministic randomization
 QUERY = """
 SELECT
     vc.thumbnail AS thumbnail_cid,
@@ -40,7 +41,8 @@ WHERE
     AND vc.thumbnail <> ''
     AND vca.initial_confidence_score >= 0.7
 GROUP BY vc.thumbnail
-HAVING COUNT(*) >= 1;
+HAVING COUNT(*) >= 1
+ORDER BY RANDOM(); 
 """
 
 
