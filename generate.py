@@ -27,7 +27,7 @@ os.makedirs(IMAGE_FOLDER, exist_ok=True)
 QUERY = """
 SELECT
     vc.thumbnail AS thumbnail_cid,
-    ARRAY_AGG(a.action_name) AS actions  # Group actions per image
+    ARRAY_AGG(a.action_name) AS actions
 FROM
     "VideoClip" vc
 INNER JOIN
